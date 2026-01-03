@@ -27,7 +27,7 @@
    snmpwalk -v2c -c public localhost NET-SNMP-EXTEND-MIB::nsExtendOutputFull."snmpdControl"
    ```
 
-### Opção 2: Usando pass (leitura e escrita, pode não funcionar no WSL)
+### Opção 2: Usando pass (leitura e escrita)
 
 1. Crie o script de controle:
    Salve como `/usr/local/bin/snmpd_control.sh`:
