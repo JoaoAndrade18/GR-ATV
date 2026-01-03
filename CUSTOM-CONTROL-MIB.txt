@@ -1,0 +1,38 @@
+CUSTOM-CONTROL-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+    MODULE-IDENTITY, OBJECT-TYPE, Integer32, enterprises
+        FROM SNMPv2-SMI
+    DisplayString
+        FROM SNMPv2-TC;
+
+customControlMIB MODULE-IDENTITY
+    LAST-UPDATED    "202601020000Z"
+    ORGANIZATION    "Exemplo para controle do snmpd via SNMP"
+    CONTACT-INFO    "Seu Nome <seu.email@exemplo.com>"
+    DESCRIPTION     "MIB para controle do serviço snmpd."
+    ::= { enterprises 99999 }
+
+snmpdControl OBJECT-TYPE
+    SYNTAX      INTEGER { running(1), stopped(2), stop(3), restart(4) }
+    MAX-ACCESS  read-write
+    STATUS      current
+    DESCRIPTION "Permite ler o estado do snmpd e enviar comandos para parar ou reiniciar.\n\nValores:\n  running(1)  - Serviço está rodando\n  stopped(2)  - Serviço está parado\n  stop(3)     - Comando para parar o serviço\n  restart(4)  - Comando para reiniciar o serviço"
+
+    ::= { customControlMIB 1 }
+
+-- Traps personalizados
+
+myHighTemperatureTrap NOTIFICATION-TYPE
+    OBJECTS { }
+    STATUS  current
+    DESCRIPTION "Temperatura do equipamento ultrapassou limite seguro (> 70°C)"
+    ::= { customControlMIB 0 1 }
+
+myDiskFullTrap NOTIFICATION-TYPE
+    OBJECTS { }
+    STATUS  current
+    DESCRIPTION "Disco/partição atingiu capacidade crítica (> 95% cheio)"
+    ::= { customControlMIB 0 2 }
+
+END
