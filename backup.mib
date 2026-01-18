@@ -14,13 +14,45 @@ customControlMIB MODULE-IDENTITY
     DESCRIPTION  "Versao corrigida."
     ::= { enterprises 99999 }
 
+
+
+-- Objetos Base
+control      OBJECT IDENTIFIER ::= { customControlMIB 1 }
+controlGroup OBJECT IDENTIFIER ::= { control 1 }
+table        OBJECT IDENTIFIER ::= { customControlMIB 2 }
+myTraps      OBJECT IDENTIFIER ::= { customControlMIB 0 }
+
+
+
 -- Tarefa #01: Objeto de Controle [cite: 3]
-snmpdControl OBJECT-TYPE
-    SYNTAX      INTEGER { running(1), stopped(2), restart(3), stop(4) }
+snmpdStatus OBJECT-TYPE
+    SYNTAX      INTEGER { running(1), stopped(2) }
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Estado atual do servico"
+    ::= { control 1 }
+
+snmpdAction OBJECT-TYPE
+    SYNTAX      INTEGER { stop(1), restart(2), start(3) }
     MAX-ACCESS  read-write
     STATUS      current
-    DESCRIPTION "Estado e controle do servico snmpd[cite: 4, 5]."
-    ::= { customControlMIB 1 }
+    DESCRIPTION "Comando para parar ou reiniciar" [cite: 3, 5]
+    ::= { control 2 }
+
+snmpdUptime OBJECT-TYPE
+    SYNTAX      DisplayString
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Timestamp de quando o servico iniciou"
+    ::= { controlGroup 3 }
+
+snmpdVersion OBJECT-TYPE
+    SYNTAX      DisplayString
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Versao do binario snmpd"
+    ::= { controlGroup 4 }
+
 
 -- Tarefa #02: Tabela de Processos [cite: 9]
 processTable OBJECT-TYPE
