@@ -1,34 +1,98 @@
 CUSTOM-CONTROL-MIB DEFINITIONS ::= BEGIN
 
 IMPORTS
-    MODULE-IDENTITY, OBJECT-TYPE, NOTIFICATION-TYPE,
-    enterprises, Integer32, Gauge32, TimeTicks  FROM SNMPv2-SMI
-    DisplayString                               FROM SNMPv2-TC;
+    MODULE-IDENTITY, OBJECT-TYPE, enterprises, Integer32
+        FROM SNMPv2-SMI
+    TEXTUAL-CONVENTION, DisplayString
+        FROM SNMPv2-TC
+    MODULE-COMPLIANCE, OBJECT-GROUP
+        FROM SNMPv2-CONF;
 
 customControlMIB MODULE-IDENTITY
-    LAST-UPDATED "202505200000Z"
-    ORGANIZATION "Atividade Pratica GR-2025.2"
-    CONTACT-INFO "aluno@exemplo.com"
-    DESCRIPTION  "MIB para controle de servicos e monitoramento."
-    REVISION     "202505200000Z"
-    DESCRIPTION  "Versao corrigida."
-    ::= { enterprises 99999 }
+    LAST-UPDATED "202512150000Z"
+    ORGANIZATION "MDCC - UFC"
+    CONTACT-INFO
+        "ANTONIA MAYARA DE ALMEIDA DA SILVA
+        mayaraalmeida@alu.ufc.br
+        JOÃO BATISTA ANDRADE DOS SANTOS
+        batistajoaoguns@alu.ufc.br
+        Marcos Dantas Ortiz
+         Email: mdo@ufc.br"
+    DESCRIPTION
+        "MIB customizada para controle do servico snmpd.
+         Permite leitura do status e comandos de controle (stop/restart)."
+    REVISION "202512150000Z"
+    DESCRIPTION "Versao inicial da MIB de controle do SNMPD"
+    ::= { enterprises 99999 1 }
 
--- Tarefa #01: Objeto de Controle [cite: 3]
+-- Definicao de objetos
+customControlObjects OBJECT IDENTIFIER ::= { customControlMIB 1 }
+
+
+-- Estado do servico SNMPD (leitura)
+snmpdStatus OBJECT-TYPE
+    SYNTAX      INTEGER {
+                    unknown(0),
+                    running(1),
+                    stopped(2)
+                }
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Estado atual do servico snmpd:
+         unknown(0) - Estado desconhecido
+         running(1) - Servico em execucao
+         stopped(2) - Servico parado"
+    ::= { customControlObjects 1 }
+
+-- Controle do servico SNMPD (escrita)
 snmpdControl OBJECT-TYPE
-    SYNTAX      INTEGER { running(1), stopped(2), restart(3), stop(4) }
+    SYNTAX      INTEGER {
+                    noop(0),
+                    stop(1),
+                    restart(2),
+                    start(3)
+                }
     MAX-ACCESS  read-write
     STATUS      current
-    DESCRIPTION "Estado e controle do servico snmpd[cite: 4, 5]."
-    ::= { customControlMIB 1 }
+    DESCRIPTION
+        "Comando de controle do servico snmpd:
+         noop(0)    - Nenhuma acao (leitura retorna ultima acao)
+         stop(1)    - Parar o servico snmpd
+         restart(2) - Reiniciar o servico snmpd
+         start(3)   - Iniciar o servico snmpd
+         
+         Nota: Ao fazer SET, o agente executara a acao correspondente."
+    ::= { customControlObjects 2 }
 
--- Tarefa #02: Tabela de Processos [cite: 9]
+-- Informacoes adicionais
+snmpdUptime OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Tempo de execucao do servico snmpd desde o ultimo inicio."
+    ::= { customControlObjects 3 }
+
+snmpdVersion OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "Versao do servico snmpd em execucao."
+    ::= { customControlObjects 4 }
+
+
+
+processTableObjects OBJECT IDENTIFIER ::= { customControlMIB 2 }
+
 processTable OBJECT-TYPE
     SYNTAX      SEQUENCE OF ProcessEntry
     MAX-ACCESS  not-accessible
     STATUS      current
-    DESCRIPTION "Tabela de processos com PID, Nome, CPU, Memoria e Uptime[cite: 12]."
-    ::= { customControlMIB 2 }
+    DESCRIPTION
+        "Tabela de processos ativos do sistema."
+    ::= { processTableObjects 1 }
 
 processEntry OBJECT-TYPE
     SYNTAX      ProcessEntry
@@ -49,44 +113,83 @@ procPID OBJECT-TYPE
     SYNTAX      Integer32
     MAX-ACCESS  read-only
     STATUS      current
-    DESCRIPTION "Indice: PID do processo[cite: 11]."
+    DESCRIPTION "PID do processo."
     ::= { processEntry 1 }
 
 procName OBJECT-TYPE
     SYNTAX      DisplayString
     MAX-ACCESS  read-only
     STATUS      current
+    DESCRIPTION "Nome do processo."
     ::= { processEntry 2 }
 
 procCPU OBJECT-TYPE
     SYNTAX      Gauge32
     MAX-ACCESS  read-only
     STATUS      current
+    DESCRIPTION "Uso de CPU em porcentagem."
     ::= { processEntry 3 }
 
 procMemory OBJECT-TYPE
     SYNTAX      Gauge32
     MAX-ACCESS  read-only
     STATUS      current
+    DESCRIPTION "Uso de memoria em MB."
     ::= { processEntry 4 }
 
 procUptime OBJECT-TYPE
     SYNTAX      TimeTicks
     MAX-ACCESS  read-only
     STATUS      current
+    DESCRIPTION "Tempo de execucao do processo."
     ::= { processEntry 5 }
 
--- Tarefa #03: Traps [cite: 16]
-myTraps OBJECT IDENTIFIER ::= { customControlMIB 0 }
+
+ustomControlTraps OBJECT IDENTIFIER ::= { customControlMIB 0 }
 
 myHighTemperatureTrap NOTIFICATION-TYPE
     STATUS      current
-    DESCRIPTION "Temperatura > 70C[cite: 15]."
-    ::= { myTraps 1 }
+    DESCRIPTION
+        "Temperatura do equipamento acima do limite seguro."
+    ::= { customControlTraps 1 }
 
 myDiskFullTrap NOTIFICATION-TYPE
     STATUS      current
-    DESCRIPTION "Disco > 95%[cite: 15]."
-    ::= { myTraps 2 }
+    DESCRIPTION
+        "Disco ou particao atingiu capacidade critica."
+    ::= { customControlTraps 2 }
+
+
+
+-- Conformidade
+customControlConformance OBJECT IDENTIFIER ::= { customControlMIB 2 }
+
+customControlCompliances OBJECT IDENTIFIER ::= { customControlConformance 1 }
+customControlGroups      OBJECT IDENTIFIER ::= { customControlConformance 2 }
+
+customControlCompliance MODULE-COMPLIANCE
+    STATUS      current
+    DESCRIPTION
+        "Requisitos de conformidade para implementacao desta MIB."
+    MODULE
+        MANDATORY-GROUPS { customControlGroup }
+    ::= { customControlCompliances 1 }
+
+customControlGroup OBJECT-GROUP
+    OBJECTS {
+        snmpdStatus,
+        snmpdControl,
+        snmpdUptime,
+        snmpdVersion,
+        procPID,
+        procName,
+        procCPU,
+        procMemory,
+        procUptime
+    }
+    STATUS      current
+    DESCRIPTION
+        "Grupo de objetos para controle do snmpd."
+    ::= { customControlGroups 1 }
 
 END

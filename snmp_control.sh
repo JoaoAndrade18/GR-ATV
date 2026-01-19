@@ -4,17 +4,91 @@ OID_BASE=".1.3.6.1.4.1.99999.1.1"
 
 if [ "$1" = "-g" ]; then
     case "$2" in
-        "${OID_BASE}.1.0") echo "${OID_BASE}.1.0"; echo "integer"; systemctl is-active --quiet snmpd && echo "1" || echo "2" ;;
-        "${OID_BASE}.2.0") echo "${OID_BASE}.2.0"; echo "integer"; echo "0" ;;
-        "${OID_BASE}.3.0") echo "${OID_BASE}.3.0"; echo "string"; systemctl show snmpd --property=ActiveEnterTimestamp --value 2>/dev/null | head -1 ;;
-        "${OID_BASE}.4.0") echo "${OID_BASE}.4.0"; echo "string"; snmpd -v 2>&1 | head -1 | awk '{print $3}' ;;
+        "${OID_BASE}.1.0") 
+            echo "${OID_BASE}.1.0"
+            echo "integer"
+            systemctl is-active --quiet snmpd && echo "1" || echo "2"
+            ;;
+        "${OID_BASE}.2.0") 
+            echo "${OID_BASE}.2.0"
+            echo "integer"
+            echo "0"
+            ;;
+        "${OID_BASE}.3.0") 
+            echo "${OID_BASE}.3.0"
+            echo "string"
+            systemctl show snmpd --property=ActiveEnterTimestamp --value 2>/dev/null | head -1
+            ;;
+        "${OID_BASE}.4.0") 
+            echo "${OID_BASE}.4.0"
+            echo "string"
+            snmpd -v | head -2 | awk '{print $3}'
+            ;;
+        "${OID_BASE}.5.0") 
+            # Temperatura atual da CPU (AMD Ryzen)
+            echo "${OID_BASE}.5.0"
+            echo "integer"
+            if command -v sensors &> /dev/null; then
+                # Pega Tctl do k10temp (CPU Ryzen)
+                temp=$(sensors k10temp-pci-00c3 2>/dev/null | grep 'Tctl:' | awk '{print $2}' | sed 's/+//;s/°C//' | cut -d. -f1)
+                if [ -n "$temp" ] && [ "$temp" -gt 0 ] 2>/dev/null; then
+                    echo "$temp"
+                else
+                    echo "45"
+                fi
+            else
+                # Valor simulado se sensors não estiver instalado
+                echo "45"
+            fi
+            ;;
+        "${OID_BASE}.6.0") 
+            # Uso do disco raiz em percentual
+            echo "${OID_BASE}.6.0"
+            echo "integer"
+            df / | tail -1 | awk '{print $5}' | sed 's/%//'
+            ;;
     esac
 elif [ "$1" = "-n" ]; then
     case "$2" in
-        ".1.3.6.1.4.1.99999.1"|"${OID_BASE}") echo "${OID_BASE}.1.0"; echo "integer"; systemctl is-active --quiet snmpd && echo "1" || echo "2" ;;
-        "${OID_BASE}.1.0") echo "${OID_BASE}.2.0"; echo "integer"; echo "0" ;;
-        "${OID_BASE}.2.0") echo "${OID_BASE}.3.0"; echo "string"; systemctl show snmpd --property=ActiveEnterTimestamp --value 2>/dev/null | head -1 ;;
-        "${OID_BASE}.3.0") echo "${OID_BASE}.4.0"; echo "string"; snmpd -v 2>&1 | head -1 | awk '{print $3}' ;;
+        ".1.3.6.1.4.1.99999.1"|"${OID_BASE}") 
+            echo "${OID_BASE}.1.0"
+            echo "integer"
+            systemctl is-active --quiet snmpd && echo "1" || echo "2"
+            ;;
+        "${OID_BASE}.1.0") 
+            echo "${OID_BASE}.2.0"
+            echo "integer"
+            echo "0"
+            ;;
+        "${OID_BASE}.2.0") 
+            echo "${OID_BASE}.3.0"
+            echo "string"
+            systemctl show snmpd --property=ActiveEnterTimestamp --value 2>/dev/null | head -1
+            ;;
+        "${OID_BASE}.3.0") 
+            echo "${OID_BASE}.4.0"
+            echo "string"
+            snmpd -v 2>&1 | head -2 | awk '{print $3}'
+            ;;
+        "${OID_BASE}.4.0") 
+            echo "${OID_BASE}.5.0"
+            echo "integer"
+            if command -v sensors &> /dev/null; then
+                temp=$(sensors k10temp-pci-00c3 2>/dev/null | grep 'Tctl:' | awk '{print $2}' | sed 's/+//;s/°C//' | cut -d. -f1)
+                if [ -n "$temp" ] && [ "$temp" -gt 0 ] 2>/dev/null; then
+                    echo "$temp"
+                else
+                    echo "45"
+                fi
+            else
+                echo "45"
+            fi
+            ;;
+        "${OID_BASE}.5.0") 
+            echo "${OID_BASE}.6.0"
+            echo "integer"
+            df / | tail -1 | awk '{print $5}' | sed 's/%//'
+            ;;
     esac
 elif [ "$1" = "-s" ]; then
     OID="$2"; VALUE="$4"
@@ -28,7 +102,7 @@ elif [ "$1" = "-s" ]; then
     fi
 elif [ "$1" = "get_table" ]; then
     # Saída para a Tarefa #02
-    ps -eo pid,comm,%cpu,rss,etime --sort=-%cpu | head -n 11 | tail -n +2 | while read pid name cpu mem uptime; do
+    ps -eo pid,comm,%cpu,rss,etime --sort=-%cpu | head -n 20 | tail -n +2 | while read pid name cpu mem uptime; do
         mem_mb=$(echo "$mem / 1024" | bc)
         echo "$pid|$name|$cpu|$mem_mb|$uptime"
     done

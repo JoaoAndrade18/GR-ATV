@@ -1,118 +1,75 @@
 # SNMPD Custom Control e Tabela de Processos
 
+## requisitos
+
+- snmpd
+- snmpdtrap
+- snmpwalk
+- snmpget
+- snmpset
+- mib browser - iReasoning MIB Browser
+
+```bash
+sudo apt update
+sudo apt install -y \
+  snmp \
+  snmpd \
+  snmptrapd \
+  snmp-mibs-downloader
+```
+
+### IMPORTANTE - Ajuste os monitores para que coletem a temperatura corretamente de acordo com seu sistema, ajuste tambem o snmp_control.sh caso queira visualizar via snmp.
+
 ## 1. Controle e Status do Serviço SNMPD via SNMP
 
-### Opção 1: Usando extend (apenas leitura)
+### Usando pass (leitura e escrita)
 
-1. Crie o script de status:
-   Salve como `/usr/local/bin/snmpd_status.sh`:
-   ```bash
-   #!/bin/bash
-   systemctl is-active snmpd | grep -q active && echo 2 || echo 1
-   ```
-   Torne executável:
-   ```bash
-   sudo chmod +x /usr/local/bin/snmpd_status.sh
-   ```
-2. Adicione ao final do `/etc/snmp/snmpd.conf`:
-   ```
-   extend snmpdControl /usr/local/bin/snmpd_status.sh
-   ```
-3. Reinicie o SNMPD:
-   ```bash
-   sudo systemctl restart snmpd
-   ```
-4. Teste:
-   ```bash
-   snmpwalk -v2c -c public localhost NET-SNMP-EXTEND-MIB::nsExtendOutputFull."snmpdControl"
-   ```
+1. crie ou edite o arquivo: `/usr/local/bin/snmpd_control.sh`:
+   
+   Cole o conteúdo de `snmpd_control.sh`.
 
-### Opção 2: Usando pass (leitura e escrita)
-
-1. Crie o script de controle:
-   Salve como `/usr/local/bin/snmpd_control.sh`:
-   ```bash
-   #!/bin/bash
-
-   # GET request
-   if [ "$1" = "-g" ]; then
-     read OID
-     echo "$OID"
-     echo "integer"
-     systemctl is-active snmpd | grep -q running && echo "1" || echo "2"
-     exit 0
-   fi
-
-   # SET request
-   if [ "$1" = "-s" ]; then
-     read OID
-     read TYPE
-     read VALUE
-     if [ "$VALUE" = "3" ]; then
-        sudo systemctl stop snmpd
-       echo "$OID"
-       echo "integer"
-       echo "2"
-     elif [ "$VALUE" = "4" ]; then
-        sudo systemctl restart snmpd
-       echo "$OID"
-       echo "integer"
-       echo "1"
-      else
-       echo "$OID"
-       echo "integer"
-       echo "1"
-      fi
-     exit 0
-    fi
-   ```
    Torne executável:
    ```bash
    sudo chmod +x /usr/local/bin/snmpd_control.sh
    ```
-2. Adicione ao final do `/etc/snmp/snmpd.conf`:
+
+2. Edite o arquivo: `/etc/snmp/snmpd.conf`:
+   
+   Cole o conteúdo de `snmpd.conf`
+
+3. Reinicie o SNMPD e teste com snmpwalk:
+   ```bash
+   snmpwalk -v2c -c public localhost .1.3.6.1.4.1.99999.1.1
    ```
-   pass .1.3.6.1.4.1.99999.1 /usr/local/bin/snmpd_control.sh
+
+4. Colete os dados de uptime:
+   ```bash
+   snmpget -v2c -c public localhost .1.3.6.1.4.1.99999.1.1.3.0
    ```
-3. Reinicie o SNMPD e teste com snmpget/snmpset.
+
+5. Reinicie o snmp:
+   ```bash
+   snmpset -v2c -c public localhost .1.3.6.1.4.1.99999.1.1.2.0 i 2
+   ```
+
+5. Colete os dados de uptime novamente:
+   ```bash
+   snmpget -v2c -c public localhost .1.3.6.1.4.1.99999.1.1.3.0
+   ```
 
 ## 2. Expondo Tabela de Processos via SNMP
 
 ### Objetivo
 Expor uma tabela de processos do sistema operacional via SNMP, utilizando o mecanismo `extend` do Net-SNMP, permitindo que cada processo seja acessado como uma linha separada.
 
-### Passos
-
-1. Crie o script de tabela de processos:
-   Salve como `/usr/local/bin/snmpd_proctable.sh`:
+#### Teste a saída via SNMP:
+   Para ver cada processo SNMP:
    ```bash
-   #!/bin/bash
-   ps -eo pid,comm,pcpu,pmem,etime --sort=-pcpu | awk 'NR>1 {print $1 "|" $2 "|" $3 "|" $4 "|" $5}'
-   ```
-   Torne executável:
-   ```bash
-   sudo chmod +x /usr/local/bin/snmpd_proctable.sh
-   ```
-2. Adicione ao final do `/etc/snmp/snmpd.conf`:
-   ```
-   extend proctable /usr/local/bin/snmpd_proctable.sh
-   ```
-3. Reinicie o SNMPD:
-   ```bash
-   sudo systemctl restart snmpd
-   ```
-4. Teste a saída via SNMP:
-   Para ver todos os processos em uma string única:
-   ```bash
-   snmpwalk -v2c -c public localhost NET-SNMP-EXTEND-MIB::nsExtendOutputFull."proctable"
-   ```
-   Para ver cada processo em uma linha SNMP separada:
-   ```bash
-   snmpwalk -v2c -c public localhost NET-SNMP-EXTEND-MIB::nsExtendOutLine."proctable"
+   snmpwalk -v2c -c public localhost .1.3.6.1.4.1.99999.2
    ```
    Cada linha terá o formato:
    ```
-   PID|NOME|%CPU|%MEM|TEMPO
+   PID|NOME|%CPU|%MEM|UPTIME
    ```
 
 ### Observações
@@ -132,11 +89,8 @@ Criar e testar traps SNMP para notificação de eventos críticos.
 ### Scripts de envio de traps
 
 1. Envio de trap de alta temperatura:
-   Salve como `send_high_temp_trap.sh`:
-   ```bash
-   #!/bin/bash
-   snmptrap -v2c -c public localhost '' .1.3.6.1.4.1.99999.0.1
-   ```
+   Use `send_high_temp_trap.sh`:
+
    Torne executável:
    ```bash
    chmod +x send_high_temp_trap.sh
@@ -147,11 +101,8 @@ Criar e testar traps SNMP para notificação de eventos críticos.
    ```
 
 2. Envio de trap de disco cheio:
-   Salve como `send_disk_full_trap.sh`:
-   ```bash
-   #!/bin/bash
-   snmptrap -v2c -c public localhost '' .1.3.6.1.4.1.99999.0.2
-   ```
+   Use `send_disk_full_trap.sh`:
+   
    Torne executável:
    ```bash
    chmod +x send_disk_full_trap.sh
@@ -161,37 +112,38 @@ Criar e testar traps SNMP para notificação de eventos críticos.
    ./send_disk_full_trap.sh
    ```
 
-### Testando o recebimento dos traps
+### Implementando o recebimento dos traps
 
 Em outro terminal, rode:
 ```bash
-snmptrapd -f -Lo
+sudo snmptrapd -f -Lo -m CUSTOM-CONTROL-MIB
 ```
 Assim, você verá as traps recebidas em tempo real.
 
 ### Observação sobre snmptrapd e porta alternativa
 
-Se a porta 162 estiver ocupada (por exemplo, pelo systemd), rode o snmptrapd em uma porta alternativa, como 9162:
+Se a porta 162 estiver ocupada (por exemplo, pelo systemd), mate todos os processos e para o servico do snmptrapd.
 
 ```bash
-sudo snmptrapd -f -Lo -A udp:localhost:9162
+sudo lsof -i :162
 ```
-
-E envie os traps especificando a porta:
+Se existir o processo use:
 
 ```bash
-snmptrap -v2c -c public localhost:9162 '' .1.3.6.1.4.1.99999.0.1
-snmptrap -v2c -c public localhost:9162 '' .1.3.6.1.4.1.99999.0.2
+sudo systemctl stop snmptrapd
+sudo systemctl disable snmptrapd
+```
+Se ainda n funcionar e existir o serviço usando, pare ele:
+```bash
+sudo systemctl stop snmptrapd.socket
+sudo systemctl stop snmptrapd.service
+sudo systemctl disable snmptrapd.socket
+sudo systemctl disable snmptrapd.service
 ```
 
-Para ver detalhes legíveis dos traps, adicione ao arquivo `/etc/snmp/snmptrapd.conf`:
+2. Adicione ao arquivo `/etc/snmp/snmptrapd.conf`:
 
-```
-authCommunity   log,execute,net  public
-```
-
-Depois reinicie o snmptrapd.
-
+O conteúdo de `snmptrapd.conf`
 ---
 
 ### Observação sobre temperatura
@@ -199,13 +151,36 @@ Depois reinicie o snmptrapd.
 O trap myHighTemperatureTrap apenas sinaliza que o limite foi ultrapassado, mas não envia o valor da temperatura. Para enviar o valor, adicione um parâmetro ao comando snmptrap, por exemplo:
 
 ```bash
-snmptrap -v2c -c public localhost:9162 '' .1.3.6.1.4.1.99999.0.1 .1.3.6.1.4.1.99999.1.1 i 75
+snmptrap -v2c -c public localhost '' .1.3.6.1.4.1.99999.0.1 .1.3.6.1.4.1.99999.1.5 i 75
 ```
 
-No exemplo acima, `.1.3.6.1.4.1.99999.1.1` seria um OID para a temperatura atual (crie esse OID na sua MIB se quiser formalizar). O `i 75` indica valor inteiro 75°C.
+## Monitoramento e atuação das traps.
+Nessa seção usaremos um script que coleta os dados do dispositivo e envia traps para a mib caso ultrapasse um limiar.
 
-Se quiser, posso te ajudar a ajustar a MIB e os scripts para enviar o valor da temperatura no trap.
+### Temperatura
+   Torne executável:
+   ```bash
+   chmod +x monitor_temperature.sh
+   ```
+   Execute:
+   ```bash
+   ./monitor_temperature.sh
+   ```
 
----
+### Disco
+   Torne executável:
+   ```bash
+   chmod +x monitor_disk.sh
+   ```
+   Execute:
+   ```bash
+   ./monitor_disk.sh
+   ```
 
-Se precisar de mais detalhes ou exemplos, peça!
+### Observação
+Utilize um teste de estresse para aumentar a temperatura, e faça algo que diminua seu espaço livre no disco...
+exemplo:
+```bash
+sudo apt install stress-ng   
+stress-ng --cpu 10 --timeout 60s   
+```
